@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  core-api:
+    build: ./core-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./core-api:/app
+      - ./media_storage:/app/media
+    # دستور اصلاح شده (برای رفع خطای watchfiles)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+    depends_on:
+      - redis-stack
+    environment:
+      - REDIS_HOST=redis-stack
+
+  worker:
+    build: ./worker
+    volumes:
+      - ./worker:/app
+      - ./media_storage:/app/media
+    # دستور اصلاح شده (برای رفع خطای watchfiles)
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app
+    depends_on:
+      - redis-stack
+    environment:
+      - REDIS_HOST=redis-stack
+
+  redis-stack:
+    image: redis/redis-stack:latest
+    ports:
+      - "6380:6379"
+      - "8002:8001"
+
+# VVV --- ۳. تعریف والیوم در سطح بالا --- VVV
+#volumes:
+#  media_data:

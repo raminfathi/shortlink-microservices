@@ -1,0 +1,26 @@
+بایت‌کد پایتون
+
+pycache/
+*.py[cod]
+*$py.class
+
+محیط‌های مجازی
+
+.venv/
+venv/
+ENV/
+
+فایل‌های سیستم عامل
+
+.DS_Store
+Thumbs.db
+
+فایل‌های IDE
+
+.idea/
+.vscode/
+
+فایل‌های حساس
+
+*.env
+.env

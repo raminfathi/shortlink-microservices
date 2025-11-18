@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+redis
+pydantic
+nanoid # برای ساختن کدهای کوتاه و زیبا
+pydantic-settings
