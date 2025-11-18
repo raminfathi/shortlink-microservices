@@ -1,0 +1,67 @@
+name: CI Pipeline
+
+# تریگرها: این ورک‌فلو چه زمانی اجرا شود؟
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # --- وظیفه ۱: تست بیلد داکر (حیاتی) ---
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      # ۱. دریافت کد از مخزن
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ۲. راه‌اندازی Docker Buildx (موتور بیلد داکر)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ۳. تلاش برای ساخت ایمیج core-api
+      # اگر فایل Dockerfile یا کدها مشکل داشته باشند، اینجا خطا می‌دهد
+      - name: Build Core API
+        uses: docker/build-push-action@v5
+        with:
+          context: ./core-api
+          push: false # فقط بیلد کن، آپلود (Push) نکن
+          tags: core-api:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ۴. تلاش برای ساخت ایمیج worker
+      - name: Build Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: ./worker
+          push: false
+          tags: worker:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # --- وظیفه ۲: بررسی کیفیت کد پایتون (اختیاری) ---
+  lint-python:
+    name: Check Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r core-api/requirements.txt
+          pip install -r worker/requirements.txt
+
+      # بررسی خطاهای سینتکس (Syntax Errors) در کل پروژه
+      - name: Check Python Syntax
+        run: |
+          python -m compileall .
