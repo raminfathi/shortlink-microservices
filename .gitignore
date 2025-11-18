@@ -1,26 +1,33 @@
-بایت‌کد پایتون
+--- Python ---
 
 pycache/
 *.py[cod]
 *$py.class
-
-محیط‌های مجازی
-
 .venv/
 venv/
-ENV/
+env/
 
-فایل‌های سیستم عامل
-
-.DS_Store
-Thumbs.db
-
-فایل‌های IDE
+--- IDEs ---
 
 .idea/
 .vscode/
+*.swp
 
-فایل‌های حساس
+--- Docker & Redis ---
 
-*.env
+dump.rdb
+appendonly.aof
+
+--- Project Specific ---
+
+ما نمی‌خواهیم تصاویر تولید شده را کامیت کنیم
+
+media_storage/
+
+اما خودِ پوشه را (اگر خالی است) نگه می‌داریم (اختیاری)
+
+!media_storage/.gitkeep
+
+فایل‌های ساختاری داکر که نباید کامیت شوند (اگر وجود دارند)
+
 .env
