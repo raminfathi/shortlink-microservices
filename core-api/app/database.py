@@ -87,7 +87,34 @@ class RedisClient:
         except Exception as e:
             logger.error(f"Error reading leaderboard '{set_key}': {e}")
             return []
-# --- بخش‌های حیاتی ---
+
+
+    async def is_rate_limited(self, key: str, limit: int, window: int) -> bool:
+        """
+        Checks if the key has exceeded the limit within the time window.
+        Returns True if blocked (limit exceeded), False otherwise.
+        """
+        client = await self.get_client()
+        try:
+            # 1. Increase the counter
+            # INCR returns the new value (1, 2, 3, ...)
+            current_count = await client.incr(key)
+
+            # 2. If it's the first request (1), set the expiration time for the window
+            if current_count == 1:
+                await client.expire(key, window)
+
+            # 3. Check if limit exceeded
+            if current_count > limit:
+                logger.warning(f"Rate limit exceeded for {key}: {current_count}/{limit}")
+                return True  # Blocked
+
+            return False  # Allowed
+
+        except Exception as e:
+            logger.error(f"Error checking rate limit for '{key}': {e}")
+            # Fail open: If Redis fails, allow the request to prevent outage
+            return False
 
 # ۱. ساختن یک نمونه از کلاینت برای استفاده در main.py
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
