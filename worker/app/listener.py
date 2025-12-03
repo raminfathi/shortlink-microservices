@@ -42,15 +42,16 @@ async def process_analytics_job(message_id: str, message_data: dict) -> bool:
 
         # کلید هش: data:abc
         hash_key = f"data:{short_id}"
+        await redis_client.increment_hash_field(hash_key, "total_clicks", 1)
+        leaderboard_key = "leaderboard:top_links"
+        await redis_client.update_leaderboard(leaderboard_key, short_id, 1)
 
-        # افزایش فیلد 'total_clicks' به مقدار ۱
-        new_count = await redis_client.increment_hash_field(hash_key, "total_clicks", 1)
-
-        logger.info(f"Analytics tracked for {short_id}. Total clicks: {new_count}")
+        logger.info(f"Analytics tracked for {short_id}.")
         return True
     except Exception as e:
         logger.error(f"Analytics Job failed: {e}")
         return False
+
 
 
 # --- حلقه مصرف‌کننده عمومی (Generic Consumer Loop) ---

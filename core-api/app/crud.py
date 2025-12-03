@@ -89,3 +89,24 @@ async def track_link_click(db: redis.Redis, short_id: str):
 
     # ارسال به استریم 'analytics_jobs'
     await db.xadd(settings.ANALYTICS_STREAM_NAME, event_data)
+
+async def get_leaderboard(db: redis.Redis, limit: int = 10):
+    """
+    Retrieves the top links leaderboard from Redis Sorted Set.
+    """
+    leaderboard_key = "leaderboard:top_links"
+    
+    # 1. Get raw data from Redis (List of tuples: [(member, score), ...])
+    # We use 'redis_client' wrapper because it has the 'get_top_members' method
+    top_items = await redis_client.get_top_members(leaderboard_key, limit)
+    
+    # 2. Format the result
+    result = []
+    for member, score in top_items:
+        result.append({
+            "short_id": member,
+            "clicks": int(score),
+            "stats_url": f"{settings.BASE_URL}/{member}/stats"
+        })
+        
+    return result

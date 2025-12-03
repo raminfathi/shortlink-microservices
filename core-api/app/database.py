@@ -57,8 +57,36 @@ class RedisClient:
             logger.error(f"Error reading hash '{hash_key}': {e}")
             return {}
     # ^^^ --- پایان متد جدید --- ^^^
+    async def update_leaderboard(self, set_key: str, member: str, amount: int = 1):
+        """
+        Increments the score of a member in a Sorted Set (ZINCRBY).
+        Used for the top links leaderboard.
+        """
+        try:
+            # ZINCRBY key increment member
+            new_score = await self.client.zincrby(set_key, amount, member)
+            logger.info(f"Leaderboard '{set_key}': Member '{member}' score is now {new_score}.")
+            return new_score
+        except Exception as e:
+            logger.error(f"Error updating leaderboard '{set_key}': {e}")
+            return None
 
-
+    async def get_top_members(self, set_key: str, count: int = 10) -> list:
+        """
+        Returns the top members of a Sorted Set (ZREVRANGE).
+        Includes scores.
+        """
+        client = await self.get_client()
+        try:
+            # ZREVRANGE key start stop WITHSCORES
+            # 0 to count-1 means top 'count' members
+            # withscores=True causes Redis to return tuples: (member, score)
+            top_list = await client.zrevrange(set_key, 0, count - 1, withscores=True)
+            # Output format: [('link1', 100.0), ('link2', 50.0)]
+            return top_list
+        except Exception as e:
+            logger.error(f"Error reading leaderboard '{set_key}': {e}")
+            return []
 # --- بخش‌های حیاتی ---
 
 # ۱. ساختن یک نمونه از کلاینت برای استفاده در main.py

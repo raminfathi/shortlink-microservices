@@ -73,3 +73,12 @@ async def get_link_stats_endpoint(
     # ۳. اگر پیدا شد، آبجکت LinkStats را برمی‌گردانیم
     return stats
 # ^^^ --- پایان تابع جدید --- ^^^
+@router.get("/stats/top", response_model=list)
+async def get_top_links_endpoint(
+    limit: int = 10,
+    db: redis.Redis = Depends(get_redis_db)
+):
+    """
+    Get the top most clicked links from the Redis Sorted Set leaderboard.
+    """
+    return await crud.get_leaderboard(db, limit)

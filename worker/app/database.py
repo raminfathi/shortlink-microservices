@@ -107,8 +107,47 @@ class RedisClient:
         except Exception as e:
             logger.error(f"Error incrementing hash field '{field}' for key '{hash_key}': {e}")
             return None
-    # ^^^ --- پایان متد جدید --- ^^^
-# VVV --- ۵. اینجا را هم اصلاح می‌کنیم (پورت) --- VVV
+        
+
+    async def update_leaderboard(self, set_key: str, member: str, amount: int = 1):
+        """
+        Increments the score of a member in a Sorted Set (ZINCRBY).
+        """
+        try:
+            # ZINCRBY key increment member
+            new_score = await self.client.zincrby(set_key, amount, member)
+            logger.info(f"Leaderboard '{set_key}': Member '{member}' score is now {new_score}.")
+            return new_score
+        except Exception as e:
+            logger.error(f"Error updating leaderboard '{set_key}': {e}")
+            return None
+
+    async def is_rate_limited(self, key: str, limit: int, window: int) -> bool:
+        """
+        Checks if the key has exceeded the limit within the time window.
+        Returns True if blocked (limit exceeded), False otherwise.
+        """
+        client = await self.get_client()
+        try:
+            # 1. Increase the counter
+            # INCR returns the new value
+            current_count = await client.incr(key)
+            
+            # 2. If it's the first request (1), set the expiration time
+            if current_count == 1:
+                await client.expire(key, window)
+            
+            # 3. Check if limit exceeded
+            if current_count > limit:
+                logger.warning(f"Rate limit exceeded for {key}: {current_count}/{limit}")
+                return True # Blocked
+            
+            return False # Allowed
+            
+        except Exception as e:
+            logger.error(f"Error checking rate limit for '{key}': {e}")
+            # Fail open: If Redis fails, allow the request to prevent outage
+            return False
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 
