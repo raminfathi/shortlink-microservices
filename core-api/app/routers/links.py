@@ -51,20 +51,23 @@ async def create_link_endpoint(
 
 @router.get("/{short_id}")
 async def redirect_endpoint(
+        request: Request,  # <-- 1. Need Request object to get IP
         short_id: str,
         background_tasks: BackgroundTasks,
         db: redis.Redis = Depends(get_redis_db)
 ):
     """
     Redirect user to the original URL.
-    Tracks the click in the background.
+    Tracks the click (and IP) in the background.
     """
     long_url = await crud.get_long_url(db, short_id)
 
     if long_url:
-        # Track analytics in background (fire and forget)
-        # This ensures the redirect remains fast for the user
-        background_tasks.add_task(crud.track_link_click, db, short_id)
+        # Get Client IP
+        client_ip = request.client.host
+
+        # 2. Pass IP to the tracking function
+        background_tasks.add_task(crud.track_link_click, db, short_id, client_ip)
 
         return RedirectResponse(url=long_url, status_code=307)
     else:

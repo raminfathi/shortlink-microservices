@@ -166,6 +166,19 @@ class RedisClient:
             logger.info(f"TimeSeries: Added point to '{key}'.")
         except Exception as e:
             logger.error(f"Error adding to TimeSeries '{key}': {e}")
+
+    async def add_to_hyperloglog(self, key: str, element: str):
+        """
+        Adds an element to a HyperLogLog structure (PFADD).
+        Used for counting unique visitors (approximate).
+        """
+        try:
+            # PFADD key element
+            await self.client.pfadd(key, element)
+            logger.info(f"HyperLogLog: Added '{element}' to '{key}'.")
+        except Exception as e:
+            logger.error(f"Error adding to HyperLogLog '{key}': {e}")
+
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 

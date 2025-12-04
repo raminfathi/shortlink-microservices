@@ -68,11 +68,16 @@ async def get_link_stats(db: redis.Redis, short_id: str) -> schemas.LinkStats | 
 
     short_link = f"{settings.BASE_URL}/{short_id}"
 
-    # Create the object
+    uv_key = f"uv:{short_id}"
+    unique_clicks = await redis_client.count_hyperloglog(uv_key)
+    # ^^^ --- End of new logic --- ^^^
+
+    # Create the object with unique_clicks
     stats_obj = schemas.LinkStats(
         short_link=short_link,
         long_url=long_url,
-        qr_code_url=qr_code_url
+        qr_code_url=qr_code_url,
+        unique_clicks=unique_clicks # <--- Pass the count here
     )
 
     # 3. Set Cache (TTL: 30 seconds)
@@ -138,3 +143,16 @@ async def get_link_clicks_history(db: redis.Redis, short_id: str):
         })
 
     return history
+
+
+async def track_link_click(db: redis.Redis, short_id: str, ip: str):
+    """
+    Sends a 'click' event to the analytics stream, including the user's IP.
+    """
+    event_data = {
+        "short_id": str(short_id),
+        "ip": str(ip)  # <-- New Field: Client IP Address
+    }
+
+    # Send the event to the Redis Stream defined in settings
+    await db.xadd(settings.ANALYTICS_STREAM_NAME, event_data)

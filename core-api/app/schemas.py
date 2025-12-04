@@ -15,6 +15,7 @@ class LinkCreateResponse(BaseModel):
 class LinkStats(LinkCreateResponse):
     # Optional field, as worker might not have generated it yet
     qr_code_url: str | None = Field(default=None)
+    unique_clicks: int = 0
 
 # VVV --- Phase 8: New Schema for History --- VVV
 class ClickHistoryItem(BaseModel):

@@ -112,7 +112,18 @@ class RedisClient:
             logger.error(f"Error reading TimeSeries '{key}': {e}")
             return []
 
-
+    async def count_hyperloglog(self, key: str) -> int:
+        """
+        Returns the approximated number of unique elements in a HyperLogLog (PFCOUNT).
+        """
+        client = await self.get_client()
+        try:
+            # PFCOUNT key
+            count = await client.pfcount(key)
+            return count
+        except Exception as e:
+            logger.error(f"Error counting HyperLogLog '{key}': {e}")
+            return 0
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 

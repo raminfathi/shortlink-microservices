@@ -39,6 +39,8 @@ async def process_analytics_job(message_id: str, message_data: dict) -> bool:
     logger.info(f"--- PROCESSING ANALYTICS JOB: {message_id} ---")
     try:
         short_id = message_data.get('short_id')
+        user_ip = message_data.get('ip')
+
         if not short_id:
             return False
 
@@ -57,7 +59,10 @@ async def process_analytics_job(message_id: str, message_data: dict) -> bool:
         # Retention: Keep data for 7 days (7 * 24 * 60 * 60 * 1000 ms = 604800000 ms)
         await redis_client.add_timeseries_point(ts_key, value=1, retention_ms=604800000)
         # ^^^ ------------------------------------------ ^^^
-
+        if user_ip:
+            # Key format: uv:{short_id} (uv = Unique Visitors)
+            uv_key = f"uv:{short_id}"
+            await redis_client.add_to_hyperloglog(uv_key, user_ip)
         logger.info(f"Analytics tracked for {short_id} (Hash, Leaderboard, TimeSeries).")
         return True
     except Exception as e:
