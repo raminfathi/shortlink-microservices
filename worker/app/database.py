@@ -178,7 +178,18 @@ class RedisClient:
             logger.info(f"HyperLogLog: Added '{element}' to '{key}'.")
         except Exception as e:
             logger.error(f"Error adding to HyperLogLog '{key}': {e}")
-
+    async def add_to_bloom_filter(self, key: str, item: str):
+        """
+        Adds an item to a Bloom Filter (BF.ADD).
+        Used to quickly check if a short_id exists.
+        """
+        try:
+            # BF.ADD key item
+            # client.bf() دسترسی به دستورات Bloom Filter را می‌دهد
+            await self.client.bf().add(key, item)
+            logger.info(f"BloomFilter: Added '{item}' to '{key}'.")
+        except Exception as e:
+            logger.error(f"Error adding to BloomFilter '{key}': {e}")
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 

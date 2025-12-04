@@ -27,6 +27,8 @@ async def process_qr_job(message_id: str, message_data: dict) -> bool:
         web_path = f"/media/{filename}"
         await redis_client.set_hash_field(hash_key, "qr_code_path", web_path)
 
+        bf_key = "bf:short_links"
+        await redis_client.add_to_bloom_filter(bf_key, short_id)
         logger.info(f"QR code generated for {short_id}")
         return True
     except Exception as e:

@@ -124,6 +124,27 @@ class RedisClient:
         except Exception as e:
             logger.error(f"Error counting HyperLogLog '{key}': {e}")
             return 0
+    async def check_bloom_filter(self, key: str, item: str) -> bool:
+        """
+        Checks if an item exists in a Bloom Filter (BF.EXISTS).
+        Returns True if item MIGHT exist.
+        Returns False if item DEFINITELY does not exist.
+        """
+        client = await self.get_client()
+        try:
+            # BF.EXISTS key item
+            exists = await client.bf().exists(key, item)
+            # The result is 1 (True) or 0 (False)
+            if exists:
+                logger.info(f"BloomFilter: '{item}' MIGHT exist in '{key}'.")
+                return True
+            else:
+                logger.info(f"BloomFilter: '{item}' DEFINITELY does not exist in '{key}'.")
+                return False
+        except Exception as e:
+            logger.error(f"Error checking BloomFilter '{key}': {e}")
+            # Fail open: If Redis fails, return True to allow DB check (safety fallback)
+            return True
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 

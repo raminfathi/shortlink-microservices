@@ -31,7 +31,19 @@ async def create_short_link(db: redis.Redis, long_url: str) -> str:
 async def get_long_url(db: redis.Redis, short_id: str) -> str | None:
     """
     Gets the long URL from Redis String.
+    Uses Bloom Filter to avoid unnecessary DB lookups (Cache Penetration).
     """
+    # 1. Check Bloom Filter first
+    bf_key = "bf:short_links"
+
+    # We use our wrapper 'redis_client' to call the custom method
+    exists_in_filter = await redis_client.check_bloom_filter(bf_key, short_id)
+
+    # If Bloom Filter says it DEFINITELY does not exist, return None immediately.
+    if not exists_in_filter:
+        return None
+
+    # 2. If it MIGHT exist, proceed to check the actual database (String)
     redis_key = f"link:{short_id}"
     return await db.get(redis_key)
 
