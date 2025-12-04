@@ -115,6 +115,35 @@ class RedisClient:
             logger.error(f"Error checking rate limit for '{key}': {e}")
             # Fail open: If Redis fails, allow the request to prevent outage
             return False
+    async def get_cache(self, key: str) -> str | None:
+        """
+        Retrieves a value from cache (GET).
+        """
+        client = await self.get_client()
+        try:
+            val = await client.get(key)
+            if val:
+                logger.info(f"Cache HIT for key: {key}")
+            else:
+                logger.info(f"Cache MISS for key: {key}")
+            return val
+        except Exception as e:
+            logger.error(f"Error getting cache for {key}: {e}")
+            return None
+
+    async def set_cache(self, key: str, value: str, ttl: int):
+        """
+        Sets a value in cache with expiration (SETEX).
+        ttl: Time To Live in seconds.
+        """
+        client = await self.get_client()
+        try:
+            # SETEX key seconds value
+            await client.setex(key, ttl, value)
+            logger.info(f"Cache SET for key: {key} (TTL: {ttl}s)")
+        except Exception as e:
+            logger.error(f"Error setting cache for {key}: {e}")
+    # ^^^ --- End Caching Methods --- ^^^
 
 # ۱. ساختن یک نمونه از کلاینت برای استفاده در main.py
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)

@@ -1,106 +1,112 @@
 import redis.asyncio as redis
 from nanoid import generate
+import json  # <-- 1. Import json for serialization
 from .config import settings
-# VVV --- ۱. این import ها جدید هستند --- VVV
-from .database import redis_client  # <-- کلاینت-رپر را وارد می‌کنیم
+from .database import redis_client  # We need our custom wrapper
 from . import schemas
 
 
-# ^^^ --- پایان بخش جدید --- ^^^
-
 async def create_short_link(db: redis.Redis, long_url: str) -> str:
     """
-    لینک کوتاه را می‌سازد، آن را ذخیره می‌کند (String) و
-    یک کار (Job) برای سرویس کارگر ارسال می‌کند (Stream).
+    Creates a short link, saves it (String), and sends a job to worker (Stream).
     """
-
-    # ۱. تولید شناسه و کلید
+    # 1. Generate ID
     short_id = generate(size=6)
     redis_key = f"link:{short_id}"
 
-    # ۲. ذخیره لینک اصلی به عنوان یک String
+    # 2. Save String
     await db.set(redis_key, str(long_url))
 
-    # ۳. ارسال پیام به استریم برای سرویس کارگر
+    # 3. Send to Worker
     job_data = {
         "short_id": str(short_id),
         "long_url": str(long_url)
     }
     await db.xadd(settings.QR_CODE_JOBS_STREAM, job_data)
 
-    # ۴. برگرداندن شناسه به کاربر
+    # 4. Return ID
     return short_id
 
 
 async def get_long_url(db: redis.Redis, short_id: str) -> str | None:
     """
-    لینک بلند را بر اساس شناسه کوتاه از ردیس می‌خواند (از نوع String).
+    Gets the long URL from Redis String.
     """
     redis_key = f"link:{short_id}"
     return await db.get(redis_key)
 
 
-# VVV --- ۲. این تابع کاملاً جدید است --- VVV
+# VVV --- Updated Function with Caching --- VVV
 async def get_link_stats(db: redis.Redis, short_id: str) -> schemas.LinkStats | None:
     """
-    آمار کامل یک لینک (شامل QR Code) را با خواندن از String و Hash برمی‌گرداند.
+    Gets full stats with Caching (Look-aside pattern).
+    1. Try Cache -> 2. If Miss, Get from DB -> 3. Set Cache -> 4. Return
     """
 
-    # ۱. اول، لینک اصلی را از String پیدا می‌کنیم
-    # (از تابع موجود get_long_url استفاده می‌کنیم)
+    # 1. Try Cache
+    cache_key = f"cache:stats:{short_id}"
+    # Use our wrapper method to get cache
+    cached_data = await redis_client.get_cache(cache_key)
+
+    if cached_data:
+        # Cache HIT: Parse JSON and return immediately
+        data_dict = json.loads(cached_data)
+        return schemas.LinkStats(**data_dict)
+
+    # 2. Cache MISS: Get from DB (Existing Logic)
     long_url = await get_long_url(db, short_id)
 
-    # اگر لینک اصلی وجود نداشته باشد، آماری هم وجود ندارد
     if not long_url:
         return None
 
-    # ۲. حالا، داده‌های اضافی را از Hash می‌خوانیم
     hash_key = f"{settings.DATA_HASH_KEY_PREFIX}:{short_id}"
-
-    # HGETALL تمام فیلدهای هش را به صورت یک دیکشنری برمی‌گرداند
-    # ما از 'redis_client' (کلاینت-رپر) برای دسترسی به متد 'get_hash_all' استفاده می‌کنیم
     hash_data = await redis_client.get_hash_all(hash_key)
 
-    # ۳. پاسخ را می‌سازیم
     qr_code_url = None
     if "qr_code_path" in hash_data:
-        # آدرس کامل را می‌سازیم
         qr_code_url = f"{settings.BASE_URL}{hash_data['qr_code_path']}"
 
     short_link = f"{settings.BASE_URL}/{short_id}"
 
-    return schemas.LinkStats(
+    # Create the object
+    stats_obj = schemas.LinkStats(
         short_link=short_link,
         long_url=long_url,
         qr_code_url=qr_code_url
-        # (در فاز بعدی، 'total_clicks' را هم به اینجا اضافه خواهیم کرد)
     )
-# ^^^ --- پایان تابع جدید --- ^^^
+
+    # 3. Set Cache (TTL: 30 seconds)
+    # Serialize the Pydantic model to JSON string
+    # We use model_dump() (Pydantic v2) or dict() and then dumps
+    await redis_client.set_cache(
+        cache_key,
+        json.dumps(stats_obj.model_dump(mode='json')),
+        ttl=30
+    )
+    return stats_obj
+
+
+# ^^^ --- End Updated Function --- ^^^
 
 async def track_link_click(db: redis.Redis, short_id: str):
     """
-    یک رویداد 'بازدید' (Click) را به استریم آمار ارسال می‌کند.
+    Sends a 'click' event to the analytics stream.
     """
-    # داده‌ای که می‌خواهیم به worker بفرستیم
     event_data = {
         "short_id": str(short_id)
-        # در آینده می‌توانیم IP یا User-Agent را هم اینجا اضافه کنیم
     }
 
-    # ارسال به استریم 'analytics_jobs'
     await db.xadd(settings.ANALYTICS_STREAM_NAME, event_data)
+
 
 async def get_leaderboard(db: redis.Redis, limit: int = 10):
     """
     Retrieves the top links leaderboard from Redis Sorted Set.
     """
     leaderboard_key = "leaderboard:top_links"
-    
-    # 1. Get raw data from Redis (List of tuples: [(member, score), ...])
-    # We use 'redis_client' wrapper because it has the 'get_top_members' method
+
     top_items = await redis_client.get_top_members(leaderboard_key, limit)
-    
-    # 2. Format the result
+
     result = []
     for member, score in top_items:
         result.append({
@@ -108,5 +114,5 @@ async def get_leaderboard(db: redis.Redis, limit: int = 10):
             "clicks": int(score),
             "stats_url": f"{settings.BASE_URL}/{member}/stats"
         })
-        
+
     return result
