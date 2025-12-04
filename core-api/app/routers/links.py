@@ -1,6 +1,7 @@
 import redis.asyncio as redis
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import RedirectResponse
+from typing import List # Import List for response model
 
 from .. import schemas, crud
 from ..config import settings
@@ -95,3 +96,18 @@ async def get_top_links_endpoint(
     Get the top most clicked links from the Redis Sorted Set leaderboard.
     """
     return await crud.get_leaderboard(db, limit)
+
+@router.get("/{short_id}/stats/history", response_model=List[schemas.ClickHistoryItem])
+async def get_link_history_endpoint(
+    short_id: str,
+    db: redis.Redis = Depends(get_redis_db)
+):
+    """
+    Get click history (time-series data) for a specific link.
+    """
+    # Check if link exists first
+    long_url = await crud.get_long_url(db, short_id)
+    if not long_url:
+        raise HTTPException(status_code=404, detail="Short link not found")
+
+    return await crud.get_link_clicks_history(db, short_id)

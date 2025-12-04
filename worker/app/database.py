@@ -148,6 +148,24 @@ class RedisClient:
             logger.error(f"Error checking rate limit for '{key}': {e}")
             # Fail open: If Redis fails, allow the request to prevent outage
             return False
+
+    # VVV --- Phase 8: New Method for TimeSeries --- VVV
+    async def add_timeseries_point(self, key: str, value: float = 1.0, retention_ms: int = 0):
+        """
+        Adds a data point to a Redis TimeSeries key (TS.ADD).
+        If the key doesn't exist, it creates it automatically.
+
+        :param key: The timeseries key (e.g., 'ts:clicks:abc')
+        :param value: The value to add (usually 1 for a click event)
+        :param retention_ms: How long to keep data in milliseconds (0 = forever)
+        """
+        try:
+            # TS.ADD key timestamp value [RETENTION retentionTime] [ON_DUPLICATE policy]
+            # '*' means use the current server timestamp
+            await self.client.ts().add(key=key, timestamp='*', value=value, retention_msecs=retention_ms)
+            logger.info(f"TimeSeries: Added point to '{key}'.")
+        except Exception as e:
+            logger.error(f"Error adding to TimeSeries '{key}': {e}")
 redis_client = RedisClient(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 

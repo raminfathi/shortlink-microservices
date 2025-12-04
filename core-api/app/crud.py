@@ -116,3 +116,25 @@ async def get_leaderboard(db: redis.Redis, limit: int = 10):
         })
 
     return result
+
+
+async def get_link_clicks_history(db: redis.Redis, short_id: str):
+    """
+    Retrieves the click history from Redis TimeSeries.
+    """
+    # Key format: ts:clicks:{short_id}
+    ts_key = f"ts:clicks:{short_id}"
+
+    # Get raw data points [(timestamp, value), ...]
+    # We use '-' and '+' to get ALL available history
+    raw_data = await redis_client.get_timeseries_range(ts_key, "-", "+")
+
+    # Format for API response
+    history = []
+    for timestamp, value in raw_data:
+        history.append({
+            "timestamp": timestamp,  # Unix timestamp in milliseconds
+            "count": int(value)
+        })
+
+    return history
