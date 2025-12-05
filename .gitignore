@@ -27,5 +27,5 @@ media_storage/
 
 !media_storage/.gitkeep
 
-
+nginx/certs/
 .env
