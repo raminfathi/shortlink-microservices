@@ -1,41 +1,41 @@
 name: CI Pipeline
 
-# تریگرها: این ورک‌فلو چه زمانی اجرا شود؟
+# Trigger the workflow on push or pull request events
 on:
   push:
-    branches: [ "main" ]
+    # Add 'develop' to the list so pushes to this branch trigger CI
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    # Also run CI when opening a PR against these branches
+    branches: [ "main", "develop" ]
 
 jobs:
-  # --- وظیفه ۱: تست بیلد داکر (حیاتی) ---
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
+
+    # Inject the secret for use in tests/builds if needed
     env:
       GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
 
     steps:
-      # ۱. دریافت کد از مخزن
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ۲. راه‌اندازی Docker Buildx (موتور بیلد داکر)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ۳. تلاش برای ساخت ایمیج core-api
-      # اگر فایل Dockerfile یا کدها مشکل داشته باشند، اینجا خطا می‌دهد
+      # Build Core API
       - name: Build Core API
         uses: docker/build-push-action@v5
         with:
           context: ./core-api
-          push: false # فقط بیلد کن، آپلود (Push) نکن
+          push: false
           tags: core-api:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ۴. تلاش برای ساخت ایمیج worker
+      # Build Worker
       - name: Build Worker
         uses: docker/build-push-action@v5
         with:
@@ -45,7 +45,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # --- وظیفه ۲: بررسی کیفیت کد پایتون (اختیاری) ---
   lint-python:
     name: Check Python Code
     runs-on: ubuntu-latest
@@ -64,7 +63,6 @@ jobs:
           pip install -r core-api/requirements.txt
           pip install -r worker/requirements.txt
 
-      # بررسی خطاهای سینتکس (Syntax Errors) در کل پروژه
       - name: Check Python Syntax
         run: |
           python -m compileall .
