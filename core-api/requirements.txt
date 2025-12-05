@@ -8,3 +8,5 @@ pydantic-settings
 pytest
 httpx
 pytest-asyncio
+
+prometheus-fastapi-instrumentator

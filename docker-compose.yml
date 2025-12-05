@@ -8,7 +8,6 @@ services:
     volumes:
       - ./core-api:/app
       - ./media_storage:/app/media
-    # دستور اصلاح شده (برای رفع خطای watchfiles)
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
     depends_on:
       - redis-stack
@@ -20,7 +19,6 @@ services:
     volumes:
       - ./worker:/app
       - ./media_storage:/app/media
-    # دستور اصلاح شده (برای رفع خطای watchfiles)
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app
     depends_on:
       - redis-stack
@@ -33,6 +31,46 @@ services:
       - "6380:6379"
       - "8002:8001"
 
-# VVV --- ۳. تعریف والیوم در سطح بالا --- VVV
-#volumes:
-#  media_data:
+
+  # 1. Prometheus: Collects metrics
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  # 2. Grafana: Visualizes metrics
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Use variable from .env file, fallback to 'admin' if not set
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    depends_on:
+      - prometheus
+
+  # 3. Redis Exporter: Translates Redis stats for Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter
+    environment:
+      - REDIS_ADDR=redis-stack:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis-stack
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+#       - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg

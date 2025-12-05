@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # 1. Redis Metrics (from redis-exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # 2. Core API Metrics (Application Level)
+  - job_name: 'core-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['core-api:8000']
+
+  # 3. cAdvisor Metrics (Container/System Level) <-- Added for container monitoring
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
