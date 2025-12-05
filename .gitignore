@@ -23,6 +23,8 @@ appendonly.aof
 
 media_storage/
 
+اما خودِ پوشه را (اگر خالی است) نگه می‌داریم (اختیاری)
+
 !media_storage/.gitkeep
 
 
