@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # --- Application Services ---
   core-api:
     build: ./core-api
     ports:
@@ -11,8 +12,11 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
     depends_on:
       - redis-stack
+      - jaeger # Wait for Jaeger
     environment:
       - REDIS_HOST=redis-stack
+      # Address to send traces to
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 
   worker:
     build: ./worker
@@ -22,8 +26,10 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app
     depends_on:
       - redis-stack
+      - jaeger
     environment:
       - REDIS_HOST=redis-stack
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 
   redis-stack:
     image: redis/redis-stack:latest
@@ -31,8 +37,7 @@ services:
       - "6380:6379"
       - "8002:8001"
 
-
-  # 1. Prometheus: Collects metrics
+  # --- Monitoring Services ---
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -42,18 +47,15 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
 
-  # 2. Grafana: Visualizes metrics
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     environment:
-      # Use variable from .env file, fallback to 'admin' if not set
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     depends_on:
       - prometheus
 
-  # 3. Redis Exporter: Translates Redis stats for Prometheus
   redis-exporter:
     image: oliver006/redis_exporter
     environment:
@@ -62,6 +64,7 @@ services:
       - "9121:9121"
     depends_on:
       - redis-stack
+
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     ports:
@@ -71,6 +74,14 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-#       - /dev/disk/:/dev/disk:ro
     devices:
       - /dev/kmsg
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # UI Port
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true

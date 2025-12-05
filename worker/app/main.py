@@ -1,29 +1,33 @@
-import asyncio  # <-- ۱. این import جدید است
+import asyncio
 from fastapi import FastAPI
 from .database import redis_client
-from .config import logger  # <-- ۲. این import جدید است (برای لاگ‌نویسی)
-from .listener import listen_for_jobs  # <-- ۳. تابع شنونده را وارد می‌کنیم
+from .config import logger
+from .listener import listen_for_jobs
+from .tracing import setup_tracing  # <-- 1. Import tracing setup
 
 app = FastAPI(
     title="ShortLink Worker",
-    description="سرویس کارگر برای پردازش کارهای پس‌زمینه (QR, Analytics)",
+    description="Worker Service with Tracing",
     version="1.0.0"
 )
 
+# --- Observability Setup ---
 
-# --- رویدادهای Startup و Shutdown ---
+# 2. Setup Tracing (OpenTelemetry)
+# We instrument the worker app so that Redis operations inside it
+# are automatically traced and sent to Jaeger.
+setup_tracing("worker", app)
+
+
+# --- Startup & Shutdown ---
 @app.on_event("startup")
 async def startup_app():
-    # اتصال به ردیس
+    # Connect to Redis
     await redis_client.connect()
 
-    # VVV --- ۴. تغییر اصلی در اینجا --- VVV
-    # اجرای شنونده در یک وظیفه پس‌زمینه
-    # asyncio.create_task آن را در حلقه رویداد (Event Loop) اجرا می‌کند
-    # بدون اینکه منتظر بماند تا تمام شود.
+    # Start the background listener loop
     logger.info("Starting background job listener...")
     asyncio.create_task(listen_for_jobs())
-    # ^^^ --- پایان تغییر --- ^^^
 
 
 @app.on_event("shutdown")
@@ -31,8 +35,7 @@ async def shutdown_app():
     await redis_client.disconnect()
 
 
-# --- روت‌ها ---
+# --- Health Check ---
 @app.get("/")
 def read_root():
-    # این اندپوینت برای چک کردن سلامت (Health Check) سرویس عالی است
     return {"message": "Worker is running and listening!"}
