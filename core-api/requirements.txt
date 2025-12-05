@@ -2,5 +2,9 @@ fastapi
 uvicorn[standard]
 redis
 pydantic
-nanoid # برای ساختن کدهای کوتاه و زیبا
+nanoid
 pydantic-settings
+
+pytest
+httpx
+pytest-asyncio

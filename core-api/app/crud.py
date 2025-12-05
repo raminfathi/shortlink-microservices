@@ -15,8 +15,7 @@ async def create_short_link(db: redis.Redis, long_url: str) -> str:
     redis_key = f"link:{short_id}"
 
     # 2. Save String
-    await db.set(redis_key, str(long_url))
-
+    await db.set(redis_key, str(long_url))  # It saves it here!
     # 3. Send to Worker
     job_data = {
         "short_id": str(short_id),
