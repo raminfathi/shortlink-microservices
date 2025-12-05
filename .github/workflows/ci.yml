@@ -12,6 +12,9 @@ jobs:
   build-docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    env:
+      GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+
     steps:
       # ۱. دریافت کد از مخزن
       - name: Checkout code
