@@ -81,7 +81,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       # Configuration for running behind Nginx reverse proxy
       - GF_SERVER_ROOT_URL=http://localhost/grafana/
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      # REMOVED: GF_SERVER_SERVE_FROM_SUB_PATH=true (This caused the mismatch with Nginx stripping)
     depends_on:
       - prometheus
 
