@@ -1,3 +1,4 @@
+version: '3.8'
 
 services:
   # --- Application Services ---
@@ -40,20 +41,25 @@ services:
     image: redis/redis-stack:latest
     ports:
       # Expose Redis port to host (mapped to 6380 to avoid local conflicts)
-      - "6380:6379" 
+      - "6380:6379"
       # RedisInsight UI
       - "8002:8001"
 
   # --- Infrastructure Services ---
 
-  # Nginx: Reverse Proxy & Gateway
+  # Nginx: Reverse Proxy & Gateway (Updated for HTTPS)
   nginx:
     image: nginx:latest
     ports:
-      - "80:80" # The only public entry point
+      - "80:80"   # HTTP (Redirects to HTTPS)
+      - "443:443" # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./media_storage:/app/media:ro # Read-only access to media files
+      # VVV --- Mount Certificates --- VVV
+      # Maps local certs folder to the container's certs folder
+      - ./nginx/certs:/etc/nginx/certs:ro
+      # ^^^ -------------------------- ^^^
     depends_on:
       - core-api
       - grafana
@@ -79,9 +85,8 @@ services:
     environment:
       # Security: Read password from .env file
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      # Configuration for running behind Nginx reverse proxy
-      - GF_SERVER_ROOT_URL=http://localhost/grafana/
-      # REMOVED: GF_SERVER_SERVE_FROM_SUB_PATH=true (This caused the mismatch with Nginx stripping)
+      # Configuration for running behind Nginx reverse proxy with HTTPS
+      - GF_SERVER_ROOT_URL=https://localhost/grafana/
     depends_on:
       - prometheus
 
