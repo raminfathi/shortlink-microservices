@@ -18,7 +18,7 @@ services:
       - redis-stack
       - jaeger
     environment:
-      - REDIS_HOST=redis-stack
+      - REDIS_HOST=${REDIS_HOST}
       # Send traces to Jaeger
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 
@@ -33,7 +33,7 @@ services:
       - redis-stack
       - jaeger
     environment:
-      - REDIS_HOST=redis-stack
+      - REDIS_HOST=${REDIS_HOST}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 
   # Redis Stack: Database, Cache, Message Broker
@@ -45,9 +45,45 @@ services:
       # RedisInsight UI
       - "8002:8001"
 
+  # --- Authentication & User Management Services (Phase 13) ---
+
+  # Relational Database for Auth Servicegit checkout -b feature/auth-service-setup
+  postgres:
+    image: postgres:15
+    environment:
+      # Read credentials from .env file
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Exposed for local access (e.g., DBeaver)
+
+  # Django Auth Service
+  auth-service:
+    build: ./auth-service
+    # Run development server
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - ./auth-service:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis-stack
+    environment:
+      # Connect Django to Postgres using .env variables
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_PORT=${POSTGRES_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+
   # --- Infrastructure Services ---
 
-  # Nginx: Reverse Proxy & Gateway (Updated for HTTPS)
+  # Nginx: Reverse Proxy & Gateway (HTTPS)
   nginx:
     image: nginx:latest
     ports:
@@ -56,10 +92,8 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./media_storage:/app/media:ro # Read-only access to media files
-      # VVV --- Mount Certificates --- VVV
-      # Maps local certs folder to the container's certs folder
+      # Mount SSL Certificates
       - ./nginx/certs:/etc/nginx/certs:ro
-      # ^^^ -------------------------- ^^^
     depends_on:
       - core-api
       - grafana
@@ -85,7 +119,7 @@ services:
     environment:
       # Security: Read password from .env file
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      # Configuration for running behind Nginx reverse proxy with HTTPS
+      # Configuration for running behind Nginx reverse proxy
       - GF_SERVER_ROOT_URL=https://localhost/grafana/
     depends_on:
       - prometheus
@@ -94,7 +128,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter
     environment:
-      - REDIS_ADDR=redis-stack:6379
+      - REDIS_ADDR=${REDIS_HOST}:6379
     ports:
       - "9121:9121"
     depends_on:
@@ -123,3 +157,7 @@ services:
       - "4318:4318"   # OTLP HTTP receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
+
+volumes:
+  media_data:
+  postgres_data:
