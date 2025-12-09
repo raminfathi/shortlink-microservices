@@ -20,3 +20,6 @@ python-dotenv
 
 # Deployment / Server
 gunicorn
+
+pytest
+pytest-django
