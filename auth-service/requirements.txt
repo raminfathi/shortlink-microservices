@@ -1,0 +1,25 @@
+# Core Framework
+Django>=4.2,<5.0
+djangorestframework
+django-filter
+
+# Authentication
+djangorestframework-simplejwt
+
+# Database
+# Note: Use psycopg2-binary for dev/simple containers, 
+# but compile 'psycopg2' from source for high-load production if possible.
+psycopg2-binary
+
+# Background Tasks
+celery
+redis
+django-redis
+# Utilities & Configuration
+python-dotenv
+
+# Deployment / Server
+gunicorn
+
+pytest
+pytest-django
