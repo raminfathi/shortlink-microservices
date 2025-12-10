@@ -6,6 +6,8 @@ from typing import List # Import List for response model
 from .. import schemas, crud
 from ..config import settings
 from ..database import get_redis_db, redis_client
+from ..auth import get_current_user_id
+
 
 router = APIRouter(
     tags=["Links"]
@@ -16,7 +18,8 @@ router = APIRouter(
 async def create_link_endpoint(
         request: Request,
         link_request: schemas.LinkCreateRequest,
-        db: redis.Redis = Depends(get_redis_db)
+        db: redis.Redis = Depends(get_redis_db),
+        user_id: int = Depends(get_current_user_id)
 ):
     """
     Create a new short link.

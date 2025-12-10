@@ -11,7 +11,8 @@ class Settings(BaseSettings):
 
     DATA_HASH_KEY_PREFIX: str = "data"
     ANALYTICS_STREAM_NAME: str = "analytics_jobs"
-
+    JWT_SECRET_KEY: str = "secret"
+    JWT_ALGORITHM: str = "HS256"
     MEDIA_PATH: str = "/app/media"
 
 
