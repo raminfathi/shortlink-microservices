@@ -83,6 +83,7 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       # Shared Secret for signing JWT tokens (Phase 14)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - SECRET_KEY=${SECRET_KEY}
   celery-worker:
     build: ./auth-service # Uses the same image as auth-service
     command: celery -A config worker --loglevel=info
