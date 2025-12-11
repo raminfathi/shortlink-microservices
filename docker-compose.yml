@@ -83,8 +83,25 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       # Shared Secret for signing JWT tokens (Phase 14)
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-  # --- Infrastructure Services ---
-
+  celery-worker:
+    build: ./auth-service # Uses the same image as auth-service
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - ./auth-service:/app
+    depends_on:
+      - redis-stack
+      - postgres
+      - auth-service
+    environment:
+      # Needs same env vars as auth-service to access DB/Redis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_PORT=${POSTGRES_PORT}
+      - REDIS_HOST=${REDIS_HOST}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
   # Nginx: Reverse Proxy & Gateway (HTTPS)
   nginx:
     image: nginx:latest
